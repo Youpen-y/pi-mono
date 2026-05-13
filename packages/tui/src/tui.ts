@@ -985,7 +985,14 @@ export class TUI extends Container {
 			let buffer = "\x1b[?2026h"; // Begin synchronized output
 			if (clear) {
 				buffer += this.deleteKittyImages(this.previousKittyImageIds);
-				buffer += "\x1b[2J\x1b[H\x1b[3J"; // Clear screen, home, then clear scrollback
+				// On Termux, avoid clearing scrollback (\x1b[3J). Clearing scrollback
+				// causes a visible flash where content disappears and replays from the top.
+				// The screen is still cleared and rewritten, so stale content is removed.
+				// Scrollback is repopulated by the full rewrite, allowing the user to
+				// scroll up and review history.
+				buffer += isTermuxSession()
+					? "\x1b[2J\x1b[H"       // Clear screen, home — preserve scrollback
+					: "\x1b[2J\x1b[H\x1b[3J"; // Clear screen, home, clear scrollback
 			}
 			for (let i = 0; i < newLines.length; i++) {
 				if (i > 0) buffer += "\r\n";
@@ -1025,7 +1032,7 @@ export class TUI extends Container {
 			return;
 		}
 
-		// Width changes always need a full re-render because wrapping changes.
+		// Width changes normally need a full re-render because wrapping changes.
 		if (widthChanged) {
 			logRedraw(`terminal width changed (${this.previousWidth} -> ${width})`);
 			fullRender(true);
